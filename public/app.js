@@ -292,12 +292,36 @@ app.loadDataOnPage = () => {
     // Get the current page from the body class
     const bodyClasses = document.querySelector("body").classList;
     const primaryClass = typeof(bodyClasses[0]) === 'string' ? bodyClasses[0] : false;
-    // // Logic for account settings page
-    // if(primaryClass === 'accountEdit') (async () => await app.loadAccountEditPage())();
+    // Logic for account settings page
+    if(primaryClass === 'accountEdit') (async () => await app.loadAccountEditPage())();
     // // Logic for dashboard page
     // if(primaryClass === 'checksList') (async () => await app.loadChecksListPage())();
     // // Logic for check details page
     // if(primaryClass === 'checksEdit') (async () => await app.loadChecksEditPage())()
+};
+
+// Load the account edit page specifically
+app.loadAccountEditPage = async () => {
+    // Get the phone number from the current token, or log the user out if none is there
+    const email = typeof(app.config.sessionToken.email) === 'string' ? app.config.sessionToken.email : false;
+    if(email){
+        // Fetch the user data
+        const queryStringObject = { email };
+        const {statusCode, parsedResponse} = await app.client.request(undefined,'api/users','GET',queryStringObject,undefined,true);
+        if(statusCode === 200){
+            // Put the data into the forms as values where needed
+            document.querySelector("#accountEdit1 .usernameInput").value = parsedResponse.username;
+            document.querySelector("#accountEdit1 .addressInput").value = parsedResponse.address;
+            document.querySelector("#accountEdit1 .displayEmailInput").value = parsedResponse.email;
+            // Put the hidden phone field into both forms
+            document.querySelectorAll("input.hiddenEmailInput").forEach(hiddenEmailInput => hiddenEmailInput.value = parsedResponse.email)
+        } else {
+            // If the request comes back as something other than 200, log the user our (on the assumption that the api is temporarily down or the users token is bad)
+            await app.logUserOut();
+        }
+    } else {
+        await app.logUserOut();
+    }
 };
 
 // Init (bootstrapping)
