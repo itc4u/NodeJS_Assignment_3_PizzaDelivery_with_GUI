@@ -1,0 +1,27 @@
+<h1>Create Your Account</h1>
+<h2>Sign Up is easy and only takes a few seconds</h2>
+
+<div class="formWrapper">
+    <form id="accountCreate" action="/api/users" method="POST">
+        <div class="formError"></div>
+        <div class="inputWrapper">
+            <div class="inputLabel">Username</div>
+            <input type="text" name="username" placeholder="Jane Doe" />
+        </div>
+        <div class="inputWrapper">
+            <div class="inputLabel">Email</div>
+            <input type="text" name="email" placeholder="abc123@gmail.com" />
+        </div>
+        <div class="inputWrapper">
+            <div class="inputLabel">Physical Address</div>
+            <input type="text" name="address" placeholder="1A foo street, bar coast, raccoon city" />
+        </div>
+        <div class="inputWrapper">
+            <div class="inputLabel">Choose a Password</div>
+            <input type="password" name="password" placeholder="Make it a good one!" />
+        </div>
+        <div class="inputWrapper ctaWrapper">
+            <button type="submit" class="cta blue">Get Started</button>
+        </div>
+    </form>
+</div>
