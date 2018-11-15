@@ -193,7 +193,7 @@ app.formResponseProcessor = async (formId,requestPayload,responsePayload) => {
     // If login was successful, set the token in local storage and redirect the user
     if(formId === 'sessionCreate'){
         app.setSessionToken(responsePayload);
-        window.location = '/checks/all';
+        window.location = '/menus/logged-in';
     }
     // If account setting forms saved successfully and they have success messages, show them
     const formsWithSuccessMessages = ['accountEdit1', 'accountEdit2', 'checksEdit1'];
@@ -294,8 +294,8 @@ app.loadDataOnPage = () => {
     const primaryClass = typeof(bodyClasses[0]) === 'string' ? bodyClasses[0] : false;
     // Logic for account settings page
     if(primaryClass === 'accountEdit') (async () => await app.loadAccountEditPage())();
-    // // Logic for dashboard page
-    // if(primaryClass === 'checksList') (async () => await app.loadChecksListPage())();
+    // Logic for dashboard page
+    if(primaryClass === 'menusList') (async () => await app.loadMenusListPage())();
     // // Logic for check details page
     // if(primaryClass === 'checksEdit') (async () => await app.loadChecksEditPage())()
 };
@@ -321,6 +321,40 @@ app.loadAccountEditPage = async () => {
         }
     } else {
         await app.logUserOut();
+    }
+};
+
+// Load the dashboard page specifically
+app.loadMenusListPage = async () => {
+    const {statusCode, parsedResponse} = await app.client.request(undefined, 'api/menus', 'GET', undefined, undefined, true);
+    if(statusCode === 200){
+        // Show each created check as a new row in the table
+        Object.keys(parsedResponse).forEach(async foodname => {
+            // Make the menu data into a table row
+            const table = document.getElementById("menusListTable");
+            const tr = table.insertRow(-1);
+            tr.classList.add('itemRow');
+            const td0 = tr.insertCell(0);
+            const td1 = tr.insertCell(1);
+            const td2 = tr.insertCell(2);
+            const td3 = tr.insertCell(3);
+            const td4 = tr.insertCell(4);
+            td0.innerHTML = "<img src='https://source.unsplash.com/125x125/?food,pizza' title=\"The lazy dev can't be bothered making a proper pic:)\" alt=\"The lazy dev can't be bothered making a proper pic:)\" />";
+            td1.innerHTML = foodname;
+            td2.innerHTML = "Eam stabilem appellas. Si stante, hoc natura videlicet vult, salvam esse se, quod concedimus; Quo modo autem optimum, si bonum praeterea nullum est? Incommoda autem et commoda-ita enim estmata et dustmata appello-communia esse voluerunt, paria noluerunt. Pauca mutat vel plura sane;";
+            td3.innerHTML = "$" + parsedResponse[foodname];
+            td4.innerHTML = "Idem adhuc;\n" +
+                "Sed tamen omne, quod de re bona dilucide dicitur, mihi praeclare dici videtur.\n" +
+                "Nihil sane.\n" +
+                "Sed erat aequius Triarium aliquid de dissensione nostra iudicare.\n" +
+                "Haeret in salebra.\n" +
+                "Quae cum dixisset paulumque institisset, Quid est?\n" +
+                "Nulla erit controversia.\n" +
+                "Polemoni et iam ante Aristoteli ea prima visa sunt, quae paulo ante dixi.";
+        });
+    } else {
+        // If the request comes back as something other than 200, log the user our (on the assumption that the api is temporarily down or the users token is bad)
+        app.logUserOut();
     }
 };
 
