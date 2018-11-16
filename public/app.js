@@ -3,6 +3,36 @@
  *
  */
 
+const menusTableFiller = (parsedResponse, tableId) => {
+    // Show each food item as a new row in the table
+    Object.keys(parsedResponse).forEach(async foodname => {
+        // Make the menu data into a table row
+        const table = document.getElementById(tableId);
+        const tr = table.insertRow(-1);
+        tr.classList.add('itemRow');
+        const td0 = tr.insertCell(0);
+        const td1 = tr.insertCell(1);
+        const td2 = tr.insertCell(2);
+        const td3 = tr.insertCell(3);
+        const td4 = tr.insertCell(4);
+        td0.innerHTML = "<img src='https://source.unsplash.com/125x125/?food,pizza' title=\"The lazy dev can't be bothered making a proper pic:)\" alt=\"The lazy dev can't be bothered making a proper pic:)\" />";
+        td1.innerHTML = foodname;
+        td2.innerHTML = "Eam stabilem appellas. Si stante, hoc natura videlicet vult, salvam esse se, quod concedimus; Quo modo autem optimum, si bonum praeterea nullum est? Incommoda autem et commoda-ita enim estmata et dustmata appello-communia esse voluerunt, paria noluerunt. Pauca mutat vel plura sane;";
+        td3.innerHTML = "$" + parsedResponse[foodname];
+        td4.innerHTML = "Idem adhuc;\n" +
+            "Sed tamen omne, quod de re bona dilucide dicitur, mihi praeclare dici videtur.\n" +
+            "Nihil sane.\n" +
+            "Sed erat aequius Triarium aliquid de dissensione nostra iudicare.\n" +
+            "Haeret in salebra.\n" +
+            "Quae cum dixisset paulumque institisset, Quid est?\n" +
+            "Nulla erit controversia.\n" +
+            "Polemoni et iam ante Aristoteli ea prima visa sunt, quae paulo ante dixi.";
+        if (tableId === "loggedInMenu") {
+            tr.insertCell(5).innerHTML = "<a href='#'>Add</a>"
+        }
+    })
+};
+
 // Container for the frontend application
 let app = {};
 
@@ -202,7 +232,7 @@ app.formResponseProcessor = async (formId,requestPayload,responsePayload) => {
     }
     // If the user just deleted their account, redirect them to the account-delete page
     if(formId === 'accountEdit3'){
-        app.logUserOut(false);
+        await app.logUserOut();
         window.location = '/account/deleted';
     }
     // If the user just created a new check successfully, redirect back to the dashboard
@@ -294,15 +324,15 @@ app.loadDataOnPage = () => {
     const primaryClass = typeof(bodyClasses[0]) === 'string' ? bodyClasses[0] : false;
     // Logic for account settings page
     if(primaryClass === 'accountEdit') (async () => await app.loadAccountEditPage())();
-    // Logic for dashboard page
+    // Logic for menu page
     if(primaryClass === 'menusList') (async () => await app.loadMenusListPage())();
-    // // Logic for check details page
-    // if(primaryClass === 'checksEdit') (async () => await app.loadChecksEditPage())()
+    // Logic for menu cart page
+    if(primaryClass === 'menusListAuthenticated') (async () => await app.loadMenusCartPage())()
 };
 
 // Load the account edit page specifically
 app.loadAccountEditPage = async () => {
-    // Get the phone number from the current token, or log the user out if none is there
+    // Get the email from the current token, or log the user out if none is there
     const email = typeof(app.config.sessionToken.email) === 'string' ? app.config.sessionToken.email : false;
     if(email){
         // Fetch the user data
@@ -328,33 +358,65 @@ app.loadAccountEditPage = async () => {
 app.loadMenusListPage = async () => {
     const {statusCode, parsedResponse} = await app.client.request(undefined, 'api/menus', 'GET', undefined, undefined, true);
     if(statusCode === 200){
-        // Show each created check as a new row in the table
-        Object.keys(parsedResponse).forEach(async foodname => {
-            // Make the menu data into a table row
-            const table = document.getElementById("menusListTable");
-            const tr = table.insertRow(-1);
-            tr.classList.add('itemRow');
-            const td0 = tr.insertCell(0);
-            const td1 = tr.insertCell(1);
-            const td2 = tr.insertCell(2);
-            const td3 = tr.insertCell(3);
-            const td4 = tr.insertCell(4);
-            td0.innerHTML = "<img src='https://source.unsplash.com/125x125/?food,pizza' title=\"The lazy dev can't be bothered making a proper pic:)\" alt=\"The lazy dev can't be bothered making a proper pic:)\" />";
-            td1.innerHTML = foodname;
-            td2.innerHTML = "Eam stabilem appellas. Si stante, hoc natura videlicet vult, salvam esse se, quod concedimus; Quo modo autem optimum, si bonum praeterea nullum est? Incommoda autem et commoda-ita enim estmata et dustmata appello-communia esse voluerunt, paria noluerunt. Pauca mutat vel plura sane;";
-            td3.innerHTML = "$" + parsedResponse[foodname];
-            td4.innerHTML = "Idem adhuc;\n" +
-                "Sed tamen omne, quod de re bona dilucide dicitur, mihi praeclare dici videtur.\n" +
-                "Nihil sane.\n" +
-                "Sed erat aequius Triarium aliquid de dissensione nostra iudicare.\n" +
-                "Haeret in salebra.\n" +
-                "Quae cum dixisset paulumque institisset, Quid est?\n" +
-                "Nulla erit controversia.\n" +
-                "Polemoni et iam ante Aristoteli ea prima visa sunt, quae paulo ante dixi.";
-        });
+        menusTableFiller(parsedResponse, "menusListTable");
+        document.getElementById("loginCTA").style.display = 'block'
     } else {
-        // If the request comes back as something other than 200, log the user our (on the assumption that the api is temporarily down or the users token is bad)
-        app.logUserOut();
+        // If the request comes back as something other than 200, logged the user out if any; alert error; and then redirect to home
+        await app.logUserOut();
+        alert("Error encountered when loading our menu. Please try again later.");
+        window.location = '/';
+    }
+};
+
+app.loadMenusCartPage = async () => {
+    // Get the email from the current token, or log the user out if none is there
+    const email = typeof(app.config.sessionToken.email) === 'string' ? app.config.sessionToken.email : false;
+    // Get the menu
+    const {statusCode: menuStatusCode, parsedResponse: menu} = await app.client.request(undefined, 'api/menus', 'GET', undefined, undefined, true);
+    // CALL THE API TO GET USER'S EXISTING CART ITEMS IF ANY
+    const {statusCode: cartStatusCode, parsedResponse: cart} = await app.client.request(undefined, 'api/carts', 'GET', { email }, undefined, true);
+    if(email && menuStatusCode === 200 && cartStatusCode === 200){
+        // Load the menu data into table
+        menusTableFiller(menu, "loggedInMenu");
+        // The model for cart table
+        class CartModel {
+            constructor(obj) {
+                if (typeof (obj) === "object") Object.keys(obj).forEach(key => this[key] = obj[key])
+            }
+        }
+        // The observable object for cart table
+        const CartView = new Proxy(CartModel, {
+            // CartView::construct(target::CartView, [arg0::Object, arg1::Object]) => new CartView(CartViewPreloaderObject, MenusListObject)
+            construct: (target, argumentsList) => {
+                // instantiate cart model.
+                const model = new target(argumentsList[0]); // === new CartModel(argumentsList[0])
+                // get the menu
+                const menu = argumentsList[1];
+                console.log(menu, "debug 1"); // TODO - GET RID OF THIS
+                // Preload the cart table if possible
+                Object.keys(model).forEach(async foodname => {
+                    const table = document.getElementById("cart");
+                    const tr = table.insertRow(-1);
+                    tr.classList.add('itemRow');
+                    const td0 = tr.insertCell(0);
+                    const td1 = tr.insertCell(1);
+                    const td2 = tr.insertCell(2);
+                    td0.innerHTML = foodname;
+                    td1.innerHTML = "$" + menu[foodname];
+                    td2.innerHTML = model[foodname];
+                });
+                // return the observable
+                return new Proxy(model, {
+                    // TODO - ADD TRAP HANDLERS TO INSPECT ON MODEL OPTS
+                })
+            }
+        });
+        const view = new CartView(cart, menu);
+    } else {
+        // If the request comes back as something other than 200, logged the user out if any; alert error; and then redirect to home
+        await app.logUserOut();
+        alert("Error encountered when either loading our menu or loading your cart (make sure you are logged in to view your cart). Please try again later.");
+        window.location = '/';
     }
 };
 

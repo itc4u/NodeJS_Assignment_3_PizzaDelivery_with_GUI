@@ -89,6 +89,7 @@ body.loggedIn .content .ctaWrapper a.loggedOut{
 }
 
 .content {
+    overflow:auto;
     width: 1000px;
     margin: 150px auto;
 }
@@ -291,4 +292,19 @@ td a, td a:hover, td a:active{
 #loginCTA{
     margin-top: 40px;
     display: none;
+}
+
+#loggedInMenu{
+    width: 60%;
+    float: left;
+    padding-right: 120px;
+}
+
+#cart {
+    width: 40%;
+    float: left;
+}
+
+.menusListAuthenticated .wrapper .content {
+    width: 90% !important;
 }
