@@ -1,4 +1,4 @@
-# NodeJS_Assignment_2_PizzaDelivery
+# NodeJS_Assignment_3_PizzaDelivery_with_GUI
 
 Supply the corresponding values for the following as env variables prior to the node command:
 ```
