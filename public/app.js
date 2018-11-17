@@ -36,7 +36,8 @@ const menusTableFiller = (parsedResponse, tableId) => {
     })
 };
 
-const addItemToCart = (menu, model, foodname, proxy) => {
+const addItemToCart = (menu, model, foodname, proxy, readOnly) => {
+    readOnly = readOnly === true;
     const table = document.getElementById("cart");
     const tr = table.insertRow(-1);
     tr.classList.add('itemRow');
@@ -44,25 +45,29 @@ const addItemToCart = (menu, model, foodname, proxy) => {
     const td0 = tr.insertCell(0);
     const td1 = tr.insertCell(1);
     const td2 = tr.insertCell(2);
-    const td3 = tr.insertCell(3);
     td0.innerHTML = foodname;
     td1.innerHTML = "$" + menu[foodname];
-    td2.innerHTML = `<input class='set' type='number' id="item-${foodname}" name="${foodname}" />`;
-    td3.innerHTML =
-        `<button class='add' type='button' id="addBtn-${foodname}" name="${foodname}">` +
-        "<img src='public/plus.png'/></button>" +
-        `<button class='remove' type='button' id="rmBtn-${foodname}" name="${foodname}">` +
-        "<img src='public/minus.png'/></button>";
-    document.getElementById(`item-${foodname}`).value = model[foodname];
-    document.getElementById(`item-${foodname}`).addEventListener("change", function () {
-        proxy[foodname] = this.value;
-    });
-    document.getElementById(`addBtn-${foodname}`).addEventListener("click", function () {
-        proxy[foodname] += 1;
-    });
-    document.getElementById(`rmBtn-${foodname}`).addEventListener("click", function () {
-        proxy[foodname] -= 1;
-    })
+    if (readOnly !== true) {
+        const td3 = tr.insertCell(3);
+        td2.innerHTML = `<input class='set' type='number' id="item-${foodname}" name="${foodname}" />`;
+        td3.innerHTML =
+            `<button class='add' type='button' id="addBtn-${foodname}" name="${foodname}">` +
+            "<img src='public/plus.png'/></button>" +
+            `<button class='remove' type='button' id="rmBtn-${foodname}" name="${foodname}">` +
+            "<img src='public/minus.png'/></button>";
+        document.getElementById(`item-${foodname}`).value = model[foodname];
+        document.getElementById(`item-${foodname}`).addEventListener("change", function () {
+            proxy[foodname] = this.value;
+        });
+        document.getElementById(`addBtn-${foodname}`).addEventListener("click", function () {
+            proxy[foodname] += 1;
+        });
+        document.getElementById(`rmBtn-${foodname}`).addEventListener("click", function () {
+            proxy[foodname] -= 1;
+        })
+    } else {
+        td2.innerHTML = ` x ${model[foodname]}`
+    }
 };
 
 // Postponed api/carts UPDATE
@@ -82,6 +87,9 @@ let app = {};
 app.config ={
     "sessionToken" : false
 };
+
+// Confirmation Page's Cart Object as a global state
+app.userCartObj = false;
 
 // AJAX Client for the restful API
 app.client = {};
@@ -169,6 +177,8 @@ app.logUserOut = async () => {
     const queryStringObject = { 'id': tokenId };
     const {statusCode, parsedResponse} = await app.client.request(undefined, 'api/tokens', 'DELETE', queryStringObject, undefined, true);
     if (statusCode === 200) {
+        // Get rid of the user's cart from the memory
+        app.userCartObj = false;
         // Set the app.config token as false
         app.setSessionToken(false);
         // Send the user to the logged out page
@@ -185,6 +195,10 @@ app.bindForms = function() {
         form.addEventListener("submit", async function(e) {
             // Stop it from submitting
             e.preventDefault();
+            if (document.getElementById("checkoutConfirmBtn")) {
+                document.querySelector("#checkoutConfirmBtn a").innerHTML = "Processing, please wait...";
+                document.getElementById("checkoutConfirmBtn").disabled = true
+            }
             const formId = this.id;
             const path = this.action;
             let method = this.method.toUpperCase();
@@ -222,12 +236,14 @@ app.bindForms = function() {
                     }
                 }
             }
+            // Dump the user's cart into the payload if possible
+            if (app.userCartObj !== false) payload["items"] = app.userCartObj;
             // If the method is DELETE, the payload should be a queryStringObject instead
             const queryStringObject = method === 'DELETE' ? payload : {};
             // Call the API
             const response = await app.client.request(undefined, path, method, queryStringObject, payload, true);
             // Display an error on the form if needed
-            if(response.statusCode !== 200){
+            if(![200, 201].includes(response.statusCode)){
                 // Try to get the error from the api, or set a default error message and then set the formError field with the error text
                 document.querySelector("#"+formId+" .formError").innerHTML = typeof(response.parsedResponse.Error) === 'string' ? response.parsedResponse.Error : 'An error has occurred, please try again';
                 // Show (unhide) the form error field on the form
@@ -255,27 +271,32 @@ app.formResponseProcessor = async (formId,requestPayload,responsePayload) => {
             // Set the formError field with the error text
             document.querySelector("#"+formId+" .formError").innerHTML = 'Sorry, an error has occurred. Please try again.';
             // Show (unhide) the form error field on the form
-            document.querySelector("#"+formId+" .formError").style.display = 'block';
+            document.querySelector("#"+formId+" .formError").style.display = 'block'
         } else {
             // If successful, set the token and redirect the user
             app.setSessionToken(parsedResponse);
-            window.location = '/menus/logged-in';
+            window.location = '/menus/logged-in'
         }
     }
     // If login was successful, set the token in local storage and redirect the user
     if(formId === 'sessionCreate'){
         app.setSessionToken(responsePayload);
-        window.location = '/menus/logged-in';
+        window.location = '/menus/logged-in'
     }
     // If account setting forms saved successfully and they have success messages, show them
     const formsWithSuccessMessages = ['accountEdit1', 'accountEdit2'];
     if(formsWithSuccessMessages.includes(formId)){
-        document.querySelector("#"+formId+" .formSuccess").style.display = 'block';
+        document.querySelector("#"+formId+" .formSuccess").style.display = 'block'
     }
     // If the user just deleted their account, redirect them to the account-delete page
     if(formId === 'accountEdit3'){
         await app.logUserOut();
-        window.location = '/account/deleted';
+        window.location = '/account/deleted'
+    }
+    // For credit form page
+    if(formId === 'credit-card-form') {
+        alert("Your payment has been placed");
+        window.location = '/orders/all'
     }
 };
 
@@ -366,8 +387,10 @@ app.loadDataOnPage = () => {
     if(primaryClass === 'menusList') (async () => await app.loadMenusListPage())();
     // Logic for menu cart page
     if(primaryClass === 'menusListAuthenticated') (async () => await app.loadMenusCartPage())();
+    // Logic for confirmation page
+    if(primaryClass === 'confirmPayment') (async () => await app.loadCartForConfirmation())();
     // Logic for orders page
-    // TODO - LOAD PAST ORDERS DATA
+    if(primaryClass === 'ordersList') (async () => await app.loadOrdersListPage())();
 };
 
 // Load the account edit page specifically
@@ -432,7 +455,6 @@ app.loadMenusCartPage = async () => {
         };
         // Request Sender Helper
         const dispatch = async (newModel) => {
-            console.log(newModel, "debug 7");
             const {statusCode, parsedResponse} = await postponedRequest({ email, items : newModel });
             if (statusCode === 200) {
                 document.querySelector("#cartArea .formSuccess").style.display = 'block';
@@ -555,15 +577,104 @@ app.loadMenusCartPage = async () => {
                 }
             })
         });
-        document.getElementById("checkout").addEventListener("click", function () {
-            // TODO - SEND PROPER REQUEST TO api/orders
-            console.log("FAKE ORDER PLACED", view)
-        })
+        document.getElementById("checkout").addEventListener("click", () => window.location = "/checkout/confirm")
     } else {
         // If the request comes back as something other than 200, logged the user out if any; alert error; and then redirect to home
         await app.logUserOut();
         alert("Error encountered when either loading our menu or loading your cart (make sure you are logged in to view your cart). Please try again later.");
         window.location = '/';
+    }
+};
+
+app.loadCartForConfirmation = async () => {
+    // Get the email from the current token, or log the user out if none is there
+    const email = typeof(app.config.sessionToken.email) === 'string' ? app.config.sessionToken.email : false;
+    // Get the menu
+    const {statusCode: menuStatusCode, parsedResponse: menu} = await app.client.request(undefined, 'api/menus', 'GET', undefined, undefined, true);
+    // CALL THE API TO GET USER'S EXISTING CART ITEMS IF ANY
+    const {statusCode: cartStatusCode, parsedResponse: cart} = await app.client.request(undefined, 'api/carts', 'GET', { email }, undefined, true);
+    if(email && menuStatusCode === 200 && cartStatusCode === 200 && Object.keys(cart).length > 0){
+        let cost = 0;
+        Object.keys(cart).forEach(async foodname => {
+            cost += Number(menu[foodname]) * Number(cart[foodname]);
+            addItemToCart(menu, cart, foodname, undefined, true)
+        });
+        document.getElementById("total-amount").innerText = `Total Amount: ${String(cost.toFixed(2))}`;
+        document.querySelector(".hiddenEmailInput").value = email;
+        app.userCartObj = cart
+    } else {
+        if (email && menuStatusCode === 200 && cartStatusCode === 200 && Object.keys(cart).length === 0) {
+            alert("Your cart is empty. Redirecting to home page.") // keep the user logged in if the cart is empty while no other errors present
+        } else {
+            await app.logUserOut();
+            alert("The server cannot process your request at the moment. Redirecting to home page.")
+        }
+        window.location = "/"
+    }
+};
+
+app.loadOrdersListPage = async () => {
+    /*
+        <th>Your Email</th>
+        <th>Order Id</th>
+        <th>Total Payment</th>
+        <th>Items Ordered</th>
+        <th>Transaction Status</th>
+        <th>Tokenized Card Detail (Source Id)</th>
+        <th>Balance Transaction Id</th>
+        <th>Description</th>
+        <th>Email Notification Record</th>
+     */
+    // Get the email from the current token, or log the user out if none is there
+    const email = typeof(app.config.sessionToken.email) === 'string' ? app.config.sessionToken.email : false;
+    // Get the menu
+    const {statusCode: userDataStatusCode, parsedResponse: userData} = await app.client.request(undefined, 'api/users', 'GET', {email}, undefined, true);
+    if (email && userDataStatusCode === 200) {
+        if (typeof (userData.orders) === "object" && userData.orders instanceof Array && userData.orders.length > 0) {
+            userData.orders.forEach(async orderId => {
+                const {statusCode: orderDataStatusCode, parsedResponse: orderData} = await app.client.request(undefined, 'api/orders', 'GET', {email, orderId}, undefined, true);
+                const table = document.getElementById("orders");
+                const tr = table.insertRow(-1);
+                if (orderDataStatusCode !== 200) {
+                    alert(`Failed to load transaction data. (order id : ${orderId})`);
+                    tr.classList.add('orderRow-corrupted');
+                    tr.innerHTML = `<td colspan="9">The information about order id ${orderId} for user ${email} is either corrupted or lost. Please contact the administrator for further enquiries.</td>`;
+                    return
+                }
+                tr.classList.add('orderRow');
+                const owner = tr.insertCell(0);
+                const oid = tr.insertCell(1);
+                const receipt_amount = tr.insertCell(2);
+                const receipt_items_ordered = tr.insertCell(3);
+                const transaction_status = tr.insertCell(4);
+                const transaction_source_id = tr.insertCell(5);
+                const transaction_balance_transaction = tr.insertCell(6);
+                const transaction_description = tr.insertCell(7);
+                const emailNotification = tr.insertCell(8);
+                owner.innerHTML = orderData.owner;
+                oid.innerHTML = orderData.orderId;
+                receipt_amount.innerHTML = orderData.receipt.amount;
+                let orderedItems = "<ul>";
+                Object.entries(orderData.receipt.items_ordered).forEach(value => orderedItems += `<li>name : ${value[0]}, quantity: ${value[1]}</li>`);
+                orderedItems += "</ul>";
+                receipt_items_ordered.innerHTML = orderedItems;
+                transaction_status.innerHTML = orderData.transaction.status;
+                transaction_source_id.innerHTML = orderData.transaction.source_id;
+                transaction_balance_transaction.innerHTML = orderData.transaction.balance_transaction;
+                transaction_description.innerHTML = orderData.transaction.description;
+                emailNotification.innerHTML =
+                    `<ul>
+                        <li>id : ${orderData.emailNotification.id}</li>
+                        <li>message : ${orderData.emailNotification.message}</li>
+                    </ul>`
+            })
+        } else {
+            document.getElementById("noOrdersMessage").style.display = "block"
+        }
+    } else {
+        await app.logUserOut();
+        alert("Couldn't find your user data. Redirecting to home page.");
+        window.location = "/"
     }
 };
 
