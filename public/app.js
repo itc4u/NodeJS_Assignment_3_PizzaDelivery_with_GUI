@@ -566,8 +566,7 @@ app.loadMenusCartPage = async () => {
         });
         // view === proxy
         const view = new CartView(cart, menu);
-        // JSON.stringify(view) will return the flattened object as if it is "unwrapped" from the proxy
-        app.view = view; // TODO - GET RID OF THIS
+        // Side Note : JSON.stringify(view) will return the flattened object as if it is "unwrapped" from the proxy
         document.querySelectorAll(".addToCart").forEach(btn => {
             btn.addEventListener("click", function () {
                 if (view[this.name] && typeof (view[this.name]) === "number") {
