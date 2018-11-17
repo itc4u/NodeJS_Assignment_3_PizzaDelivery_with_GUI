@@ -28,7 +28,10 @@ const menusTableFiller = (parsedResponse, tableId) => {
             "Nulla erit controversia.\n" +
             "Polemoni et iam ante Aristoteli ea prima visa sunt, quae paulo ante dixi.";
         if (tableId === "loggedInMenu") {
-            tr.insertCell(5).innerHTML = "<a href='#'>Add</a>"
+            tr.insertCell(5).innerHTML =
+                "<button class='addToCart' type='button' name='"+foodname+"'>" +
+                "<img src='public/cart.png'/>" +
+                "</button>";
         }
     })
 };
@@ -376,6 +379,8 @@ app.loadMenusCartPage = async () => {
     // CALL THE API TO GET USER'S EXISTING CART ITEMS IF ANY
     const {statusCode: cartStatusCode, parsedResponse: cart} = await app.client.request(undefined, 'api/carts', 'GET', { email }, undefined, true);
     if(email && menuStatusCode === 200 && cartStatusCode === 200){
+        // Initialize postponable request sender
+        let postponableSender;
         // Load the menu data into table
         menusTableFiller(menu, "loggedInMenu");
         // The model for cart table
@@ -401,17 +406,25 @@ app.loadMenusCartPage = async () => {
                     const td0 = tr.insertCell(0);
                     const td1 = tr.insertCell(1);
                     const td2 = tr.insertCell(2);
+                    const td3 = tr.insertCell(3);
                     td0.innerHTML = foodname;
                     td1.innerHTML = "$" + menu[foodname];
-                    td2.innerHTML = model[foodname];
+                    td2.innerHTML = "<input type='number' id='item-"+foodname+"' />";
+                    td3.innerHTML =
+                        "<button class='add' type='button' name='"+foodname+"'>" +
+                        "<img src='public/plus.png'/></button>" +
+                        "<button class='remove' type='button' name='"+foodname+"'>" +
+                        "<img src='public/minus.png'/></button>";
+                    document.getElementById("item-"+foodname).value = model[foodname];
                 });
                 // return the observable
                 return new Proxy(model, {
-                    // TODO - ADD TRAP HANDLERS TO INSPECT ON MODEL OPTS
+                    // TODO - ADD TRAP HANDLERS TO INSPECT ON MODEL OPTS AND UNDERTAKE DOM MANIPULATION BEHIND THE SCENE
                 })
             }
         });
         const view = new CartView(cart, menu);
+        // TODO - ADD LISTENER TO ALL "MENU-ADD-PIZZA" BUTTONS
     } else {
         // If the request comes back as something other than 200, logged the user out if any; alert error; and then redirect to home
         await app.logUserOut();

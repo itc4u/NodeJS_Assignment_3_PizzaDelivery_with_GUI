@@ -308,3 +308,65 @@ td a, td a:hover, td a:active{
 .menusListAuthenticated .wrapper .content {
     width: 90% !important;
 }
+
+.add {
+    width: 45% !important;
+    margin-right: 10%;
+    float: left!important;
+    border-radius:50px;
+    -moz-border-radius:50px;
+    -webkit-border-radius:50px;
+}
+
+.remove {
+    width: 45% !important;
+    float: left!important;
+    border-radius:50px;
+    -moz-border-radius:50px;
+    -webkit-border-radius:50px;
+}
+
+.addToCart {
+    width: 90% !important;
+    height: 90% !important;
+    align-self: center;
+    border-radius:50px;
+    -moz-border-radius:50px;
+    -webkit-border-radius:50px;
+}
+
+.add:hover, .remove:hover, .addToCart:hover {
+    -webkit-box-shadow:0 0 50px 10px #fdff00 ;
+    -moz-box-shadow:0 0 50px 10px #fdff00 ;
+    box-shadow:0 0 50px 10px #fdff00 ;
+}
+
+/* unvisited link */
+.footer .copyright a:link {
+    color: ghostwhite;
+}
+
+/* visited link */
+.footer .copyright a:visited {
+    color: ghostwhite;
+}
+
+/* mouse over link */
+.footer .copyright a:hover {
+    color: darkkhaki;
+}
+
+/* selected link */
+.footer .copyright a:active {
+    color: aliceblue;
+}
+
+/* Hide HTML5 Up and Down arrows. */
+#cart input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+#cart input[type="number"] {
+    -moz-appearance: textfield;
+}
