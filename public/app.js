@@ -29,12 +29,51 @@ const menusTableFiller = (parsedResponse, tableId) => {
             "Polemoni et iam ante Aristoteli ea prima visa sunt, quae paulo ante dixi.";
         if (tableId === "loggedInMenu") {
             tr.insertCell(5).innerHTML =
-                "<button class='addToCart' type='button' name='"+foodname+"'>" +
+                `<button class='addToCart' type='button' name="${foodname}">` +
                 "<img src='public/cart.png'/>" +
                 "</button>";
         }
     })
 };
+
+const addItemToCart = (menu, model, foodname, proxy) => {
+    const table = document.getElementById("cart");
+    const tr = table.insertRow(-1);
+    tr.classList.add('itemRow');
+    tr.id = `itemRow-${foodname}`;
+    const td0 = tr.insertCell(0);
+    const td1 = tr.insertCell(1);
+    const td2 = tr.insertCell(2);
+    const td3 = tr.insertCell(3);
+    td0.innerHTML = foodname;
+    td1.innerHTML = "$" + menu[foodname];
+    td2.innerHTML = `<input class='set' type='number' id="item-${foodname}" name="${foodname}" />`;
+    td3.innerHTML =
+        `<button class='add' type='button' id="addBtn-${foodname}" name="${foodname}">` +
+        "<img src='public/plus.png'/></button>" +
+        `<button class='remove' type='button' id="rmBtn-${foodname}" name="${foodname}">` +
+        "<img src='public/minus.png'/></button>";
+    document.getElementById(`item-${foodname}`).value = model[foodname];
+    document.getElementById(`item-${foodname}`).addEventListener("change", function () {
+        proxy[foodname] = this.value;
+    });
+    document.getElementById(`addBtn-${foodname}`).addEventListener("click", function () {
+        proxy[foodname] += 1;
+    });
+    document.getElementById(`rmBtn-${foodname}`).addEventListener("click", function () {
+        proxy[foodname] -= 1;
+    })
+};
+
+// Postponed api/carts UPDATE
+const postponedRequest = async data => (await app.client.request(
+    undefined,
+    'api/carts',
+    Object.entries(data.items).length === 0 ? 'DELETE' : 'PUT',
+    { email: data.email },
+    { email: data.email, items: data.items},
+    true)
+);
 
 // Container for the frontend application
 let app = {};
@@ -229,7 +268,7 @@ app.formResponseProcessor = async (formId,requestPayload,responsePayload) => {
         window.location = '/menus/logged-in';
     }
     // If account setting forms saved successfully and they have success messages, show them
-    const formsWithSuccessMessages = ['accountEdit1', 'accountEdit2', 'checksEdit1'];
+    const formsWithSuccessMessages = ['accountEdit1', 'accountEdit2'];
     if(formsWithSuccessMessages.includes(formId)){
         document.querySelector("#"+formId+" .formSuccess").style.display = 'block';
     }
@@ -238,10 +277,6 @@ app.formResponseProcessor = async (formId,requestPayload,responsePayload) => {
         await app.logUserOut();
         window.location = '/account/deleted';
     }
-    // If the user just created a new check successfully, redirect back to the dashboard
-    if(formId === 'checksCreate') window.location = '/checks/all';
-    // If the user just deleted a check, redirect them to the dashboard
-    if(formId === 'checksEdit2') window.location = '/checks/all'
 };
 
 // Get the session token from local storage and set it in the app.config object
@@ -330,7 +365,9 @@ app.loadDataOnPage = () => {
     // Logic for menu page
     if(primaryClass === 'menusList') (async () => await app.loadMenusListPage())();
     // Logic for menu cart page
-    if(primaryClass === 'menusListAuthenticated') (async () => await app.loadMenusCartPage())()
+    if(primaryClass === 'menusListAuthenticated') (async () => await app.loadMenusCartPage())();
+    // Logic for orders page
+    // TODO - LOAD PAST ORDERS DATA
 };
 
 // Load the account edit page specifically
@@ -380,7 +417,37 @@ app.loadMenusCartPage = async () => {
     const {statusCode: cartStatusCode, parsedResponse: cart} = await app.client.request(undefined, 'api/carts', 'GET', { email }, undefined, true);
     if(email && menuStatusCode === 200 && cartStatusCode === 200){
         // Initialize postponable request sender
-        let postponableSender;
+        let postponableSender = false;
+        // Toggle Checkout Helper
+        const setCheckoutEnabled = (bool) => {
+            if (bool) {
+                document.getElementById("checkout").disabled = false;
+                // restore the default style and enable the btn
+                document.getElementById("checkout").classList.value = "cta green";
+            } else {
+                document.getElementById("checkout").disabled = true;
+                // original class list - ["cta", "green", value: "cta green"], replace the entire list by updating the value key
+                document.getElementById("checkout").classList.value = "cta grey";
+            }
+        };
+        // Request Sender Helper
+        const dispatch = async (newModel) => {
+            console.log(newModel, "debug 7");
+            const {statusCode, parsedResponse} = await postponedRequest({ email, items : newModel });
+            if (statusCode === 200) {
+                document.querySelector("#cartArea .formSuccess").style.display = 'block';
+                // disable checkout btn if the cart is now empty
+                if (Object.keys(newModel).length === 0) {
+                    setCheckoutEnabled(false)
+                } else {
+                    setCheckoutEnabled(true)
+                }
+            } else {
+                document.querySelector("#cartArea .formError").innerHTML = typeof(parsedResponse.Error) === 'string' ? parsedResponse.Error : 'An error has occurred, please refresh the page and try again later';
+                document.querySelector("#cartArea .formError").style.display = 'block';
+                setCheckoutEnabled(false)
+            }
+        };
         // Load the menu data into table
         menusTableFiller(menu, "loggedInMenu");
         // The model for cart table
@@ -397,34 +464,101 @@ app.loadMenusCartPage = async () => {
                 const model = new target(argumentsList[0]); // === new CartModel(argumentsList[0])
                 // get the menu
                 const menu = argumentsList[1];
-                console.log(menu, "debug 1"); // TODO - GET RID OF THIS
-                // Preload the cart table if possible
-                Object.keys(model).forEach(async foodname => {
-                    const table = document.getElementById("cart");
-                    const tr = table.insertRow(-1);
-                    tr.classList.add('itemRow');
-                    const td0 = tr.insertCell(0);
-                    const td1 = tr.insertCell(1);
-                    const td2 = tr.insertCell(2);
-                    const td3 = tr.insertCell(3);
-                    td0.innerHTML = foodname;
-                    td1.innerHTML = "$" + menu[foodname];
-                    td2.innerHTML = "<input type='number' id='item-"+foodname+"' />";
-                    td3.innerHTML =
-                        "<button class='add' type='button' name='"+foodname+"'>" +
-                        "<img src='public/plus.png'/></button>" +
-                        "<button class='remove' type='button' name='"+foodname+"'>" +
-                        "<img src='public/minus.png'/></button>";
-                    document.getElementById("item-"+foodname).value = model[foodname];
-                });
                 // return the observable
-                return new Proxy(model, {
-                    // TODO - ADD TRAP HANDLERS TO INSPECT ON MODEL OPTS AND UNDERTAKE DOM MANIPULATION BEHIND THE SCENE
-                })
+                const proxy = new Proxy(model, {
+                    defineProperty: (target, property, descriptor) => {
+                        // target - an instance of CartModel, property - the property being created or set/updated,
+                        // descriptor - {value: new value for that property, writable: true, enumerable: true, configurable: true}
+                        // writable, enumerable, and configurable are all default to true and can be omitted by the caller
+                        // use case:
+                        //      view.test = "test_data";
+                        // will be trapped in this handler where the followings are passed in as:
+                        //      target - the view obj, of type CartModel, property - "test",
+                        //      descriptor - {value: "test_data", writable: true, enumerable: true, configurable: true}
+                        // if view.test = 2; and then view.test += 3, the later will get trapped with a descriptor.value = 5
+                        // if view does not have a property called 'test' then calling view.test += 3 will yield a descriptor.value = NaN
+                        setCheckoutEnabled(false);
+                        document.querySelector("#cartArea .formSuccess").style.display = 'none';
+                        document.querySelector("#cartArea .formError").style.display = 'none';
+                        if (descriptor.value === 0 || descriptor.value && !isNaN(Number(descriptor.value))) { // new value is a number
+                            const newVal = Number(descriptor.value);
+                            if (newVal < 1) {
+                                if (target.hasOwnProperty(property)) {
+                                    delete proxy[property];
+                                    return true
+                                } else {
+                                    return false
+                                }
+                            }
+                            if (newVal % 1 === 0) {
+                                descriptor.value = newVal;
+                            } else {
+                                descriptor.value = Math.round(newVal);
+                            }
+                            const result = Reflect.defineProperty(target, property, descriptor);
+                            if (!result) return false;
+                            if (document.getElementById("itemRow-"+property)) { // if the cart item exists
+                                document.getElementById("item-"+property).value = descriptor.value
+                            } else {
+                                addItemToCart(menu, target, property, proxy)
+                            }
+                            if (postponableSender === false) {
+                                postponableSender = setTimeout(async () => await dispatch(target), 1000)
+                            } else {
+                                clearTimeout(postponableSender);
+                                postponableSender = setTimeout(async () => await dispatch(target), 1000)
+                            }
+                            return true
+                        } else { // not a valid value
+                            return false // don't modify the model if the descriptor contains bad value
+                        }
+                    },
+                    deleteProperty: (target, property) => {
+                        setCheckoutEnabled(false);
+                        document.querySelector("#cartArea .formSuccess").style.display = 'none';
+                        document.querySelector("#cartArea .formError").style.display = 'none';
+                        // Removes the corresponding item from the cart
+                        const element = document.getElementById("itemRow-"+property);
+                        element.parentNode.removeChild(element);
+                        // Delete the actual key from the model
+                        const result = Reflect.deleteProperty(target, property);
+                        if (!result) return false;
+                        // Prepare the request
+                        if (postponableSender === false) {
+                            postponableSender = setTimeout(async () => await dispatch(target), 1000)
+                        } else {
+                            clearTimeout(postponableSender);
+                            postponableSender = setTimeout(async () => await dispatch(target), 1000)
+                        }
+                        return true
+                    }
+                });
+                // Preload the cart table if possible
+                if (Object.keys(model).length === 0) {
+                    setCheckoutEnabled(false)
+                } else {
+                    Object.keys(model).forEach(async foodname => addItemToCart(menu, model, foodname, proxy));
+                }
+                return proxy
             }
         });
+        // view === proxy
         const view = new CartView(cart, menu);
-        // TODO - ADD LISTENER TO ALL "MENU-ADD-PIZZA" BUTTONS
+        // JSON.stringify(view) will return the flattened object as if it is "unwrapped" from the proxy
+        app.view = view; // TODO - GET RID OF THIS
+        document.querySelectorAll(".addToCart").forEach(btn => {
+            btn.addEventListener("click", function () {
+                if (view[this.name] && typeof (view[this.name]) === "number") {
+                    view[this.name] += 1
+                } else {
+                    view[this.name] = 1
+                }
+            })
+        });
+        document.getElementById("checkout").addEventListener("click", function () {
+            // TODO - SEND PROPER REQUEST TO api/orders
+            console.log("FAKE ORDER PLACED", view)
+        })
     } else {
         // If the request comes back as something other than 200, logged the user out if any; alert error; and then redirect to home
         await app.logUserOut();

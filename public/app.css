@@ -166,6 +166,11 @@ body.index .blurb{
     background-color: #c83737 !important;
 }
 
+.cta.grey{
+    background-color: #1a1a1a !important;
+    opacity: 0.5 !important;
+}
+
 .warning{
     font-style: italic;
     color: #c83737;
@@ -300,7 +305,7 @@ td a, td a:hover, td a:active{
     padding-right: 120px;
 }
 
-#cart {
+#cartArea {
     width: 40%;
     float: left;
 }

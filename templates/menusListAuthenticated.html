@@ -13,16 +13,18 @@
     </tr>
 </table>
 
-<table id="cart">
-    <tr>
-        <th>Item Name</th>
-        <th>Price</th>
-        <th>Quantity</th>
-        <th>Add/Remove</th>
-    </tr>
-</table>
-
-<div id="loginCTA" class="ctaWrapper">
-    <a class="cta green loggedOut" href="session/create">Place order now!</a>
-    <a class="cta blue loggedIn" href="menus/logged-in">Place order now!</a>
+<div id="cartArea">
+    <table id="cart">
+        <tr>
+            <th>Item Name</th>
+            <th>Price</th>
+            <th>Quantity</th>
+            <th>Add/Remove</th>
+        </tr>
+    </table>
+    <div class="formError">Error when attempting to save your cart. Please refresh the page and try again later.</div>
+    <div class="formSuccess">Your Cart Has Been Saved Successfully</div>
+    <div class="ctaWrapper">
+        <button class="cta green" type="submit" id="checkout">Checkout</button>
+    </div>
 </div>
